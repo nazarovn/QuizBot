@@ -1,6 +1,9 @@
 import os
 import sqlite3
+import yaml
 
+from checker_correct_test import Checker
+from parser_tests import write_info
 from conf import ADMINS
 
 
@@ -16,7 +19,7 @@ else:
 
         cursor.execute("""CREATE TABLE tests
             (filename text, testname text, createdate text,
-            begindate text, enddate text, key text)""")
+            begindate text, enddate text, key text, author text)""")
 
         cursor.execute("CREATE TABLE users (login text, status text)")
     
@@ -24,7 +27,7 @@ else:
             (type text, filename text, password text, createdate text)""")
 
         cursor.execute("""CREATE TABLE answers
-            (login text, filename text, date text,
+            (userlogin text, username text, userid text, filename text, date text,
             question_id integer, question text, answer text)""")
 
         cursor.execute("""CREATE TABLE tests_status
@@ -35,9 +38,21 @@ else:
             conn.commit()
 
         print(f'Create database: {path_db}')
-        
+
+
+print('Load users')
 with sqlite3.connect(path_db) as conn:
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM users')
     print(f'Users: {cursor.fetchall()}')
+
+print('Load test_zero')
+path_test = '../data/tests/test_zero.yaml'
+path_db = '../data/database/bot.db'
+with open(path_test, 'r') as f:
+    data = yaml.load(f, Loader=yaml.FullLoader)
+    checker = Checker()
+    checker(data)
+
+write_info(path_test, path_db)
 

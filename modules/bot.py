@@ -12,18 +12,15 @@ from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 
+
+from bot_states import BotStates
+from utils import is_admin, get_info_show_tests, process_test_command_argumens
 from conf import TOKEN
 
 
-button_hi = KeyboardButton('Начать тест! 👋')
+PATH_DB = '../data/database/bot.db'
 
-greet_kb = ReplyKeyboardMarkup(resize_keyboard=True)
-greet_kb.add(button_hi)
 
-inline_btn_1 = InlineKeyboardButton('Teacher', callback_data='button1')
-inline_btn_2 = InlineKeyboardButton('Student', callback_data='button2')
-
-inline_kb_full = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -31,29 +28,10 @@ dp.middleware.setup(LoggingMiddleware())
 
 
 
-def get_url():
-    contents = requests.get('https://random.dog/woof.json').json()    
-    url = contents['url']
-    return url
+inline_btn_1 = InlineKeyboardButton('Teacher', callback_data='button1')
+inline_btn_2 = InlineKeyboardButton('Student', callback_data='button2')
 
-
-def get_image_url():
-    allowed_extension = ['jpg','jpeg','png']
-    file_extension = ''
-    while file_extension not in allowed_extension:
-        url = get_url()
-        file_extension = re.search("([^.]*)$",url).group(1).lower()
-    return url
-
-
-@dp.message_handler(commands=['bop'])
-async def process_photo_command(message: types.Message):
-    caption = 'Ути-пути'
-    image = get_image_url()
-    await bot.send_photo(message.from_user.id, image,
-                         caption=caption,
-                         reply_to_message_id=message.message_id)
-
+inline_kb_full = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('button'))
 async def process_callback_kb1btn1(callback_query: types.CallbackQuery):
@@ -69,25 +47,102 @@ async def process_callback_kb1btn1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, f'Write you name:')
 
 
-
-@dp.message_handler(commands=['start'])
-async def process_start_command(message: types.Message):
-    await message.reply("Hi!\nWhat are you?", reply_markup=inline_kb_full)
+#######################################################################
+#################       USER COMMANDS        ##########################
+#######################################################################
 
 
 @dp.message_handler(commands=['help'])
-async def process_help_command(message: types.Message):
+async def process_help_user_command(message: types.Message):
     await message.reply(r"""
 Commands:
 /help - help
-/start - start work with tests
-/bop - get dog
+/test <test_id> - run test
 """)
 
 
+@dp.message_handler(commands=['test'])
+async def process_test_command(message: types.Message):
+    arguments = message.get_args().split()
+    permission, answer = process_test_command_argumens(arguments)
+    if permission:
+        # state to Test
+        # load quiz data
+        # print describe
+        # button: start quiz
+        # run questions
+        run_quiz(arguments)
+    else:
+        await message.answer(answer)
+
+
+
+#######################################################################
+#################      ADMIN COMMANDS        ##########################
+#######################################################################
+
+
+@dp.message_handler(state=BotStates.STATE_ADMIN, commands=['help'])
+async def process_help_admin_command(message: types.Message):
+    await message.reply(r"""
+Commands Admin:
+/help - help
+/test <test_id> - run test
+
+/admin - set role Admin
+/user - set role User
+/show_tests - show exists tests
+""")
+
+
+@dp.message_handler(state='*', commands=['admin'])
+async def process_admin_command(message: types.Message):
+    if is_admin(message, PATH_DB):
+        state = dp.current_state(user=message.from_user.id)
+        await state.set_state(BotStates.STATE_ADMIN)
+        await message.reply('You are admin')
+    else:
+        await message.reply('Permission denied')
+
+
+@dp.message_handler(state='*', commands=['user'])
+async def process_user_command(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.reset_state()
+    await message.reply('You are user')
+
+
+@dp.message_handler(state=BotStates.STATE_ADMIN, commands=['show_tests'])
+async def process_show_tests_command(message: types.Message):
+    tests_info = get_info_show_tests(PATH_DB)
+    await message.reply(tests_info)
+
+
+#######################################################################
+#################       TEST COMMANDS        ##########################
+#######################################################################
+
+
+
+
+
+
+
+
+
 @dp.message_handler()
-async def echo_message(msg: types.Message):
+async def echo_message(message: types.Message):
+    #print(dir(msg))
+    msg = message
+    print(msg.from_user)
+    print(msg.from_user.id)
+    print()
+    print(msg.chat)
+    print(msg.conf)
+    
+    state = dp.current_state(user=message.from_user.id)
     await bot.send_message(msg.from_user.id, 'Answer recorded')
+    await bot.send_message(msg.from_user.id, state)
 
 
 if __name__ == '__main__':

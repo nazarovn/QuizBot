@@ -1,10 +1,47 @@
 import yaml
 import os
+import sqlite3
+from datetime import datetime
+import random
+import string
+
 
 # #####     PROCESS NEW FILE      ######
 
-def write_info(doc):
-    pass
+def random_string(string_length):
+    """Generate a random string of fixed length """
+    letters = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters) for _ in range(string_length))
+
+
+def write_info(path_test: str, path_db: str, author=None):
+    """Write test info to table 'tests'
+
+    :param path_test: path to test file
+    :param path_db: path to database
+    :param author (str): who create test
+    """
+    with open(path_test, 'r') as f:    
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    filename = os.path.split(path_test)[1]
+    testname = data['testname']
+    createdate = datetime.now().strftime('%Y-%m-%d %H:%M')
+    begindate = data['begindate'] or ''
+    enddate = data['enddate'] or ''
+    author = author or ''
+    
+    with sqlite3.connect(path_db) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT key FROM tests")
+        keys = set([v[0] for v in cursor.fetchall()])
+        key = random_string(4)
+        while key in keys:
+            key = random_string(4)
+
+        values = [filename, testname, createdate, begindate, enddate, key, author]
+        cursor.execute("INSERT INTO tests VALUES (?,?,?,?,?,?,?)", values)
+        conn.commit()
 
 
 def save_file(doc):

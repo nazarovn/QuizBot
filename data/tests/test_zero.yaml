@@ -7,11 +7,13 @@ user_logins: null
 # use begindate and enddate to set availability period of test
 begindate: null
 enddate: null
+# duration test from begin in minute, 'null' if there are no restrictions
+duration: null
 questions:
-        - type: 'button'
+        - question_type: 'button'
           question: 'What year is now?'
           variants: ['2019', '2020', '202']
           answer: '2020'
-        - type: 'text'
+        - question_type: 'text'
           question: 'Столица России?'
           answer: 'москва'
