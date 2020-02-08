@@ -1,0 +1,17 @@
+# short name of test
+testname: 'Zero test'
+# test description
+description: "It's first test for testing telegram-bot. The test consists few questions."
+# list logins in telegram, who can solve this test. If test for anyone use 'null'
+user_logins: null
+# use begindate and enddate to set availability period of test
+begindate: null
+enddate: null
+questions:
+        - type: 'button'
+          question: 'What year is now?'
+          variants: ['2019', '2020', '202']
+          answer: '2020'
+        - type: 'text'
+          question: 'Столица России?'
+          answer: 'москва'
