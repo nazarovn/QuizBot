@@ -27,8 +27,8 @@ else:
             (type text, filename text, password text, createdate text)""")
 
         cursor.execute("""CREATE TABLE answers
-            (userlogin text, username text, userid text, filename text, date text,
-            question_id integer, question text, answer text)""")
+            (userlogin text, username text, userid text, filename text, datebegin text,
+            date text, question_id integer, message_type text, message text)""")
 
         cursor.execute("""CREATE TABLE tests_status
             (filename text, userlogin text, date text, status text, info text)""")

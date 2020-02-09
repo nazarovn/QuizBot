@@ -15,6 +15,8 @@ from aiogram.types import ReplyKeyboardRemove, \
 
 from bot_states import BotStates
 from utils import is_admin, get_info_show_tests, process_test_command_argumens
+from utils import update_db_test_status, ask_question, write_answer
+from parser_tests import load_test
 from conf import TOKEN
 
 
@@ -28,10 +30,32 @@ dp.middleware.setup(LoggingMiddleware())
 
 
 
+#btn_begin_quiz = InlineKeyboardButton('Begin quiz', callback_data='begin_quiz')
+#kb_begin_quiz = InlineKeyboardMarkup().add(btn_begin_quiz)
+
 inline_btn_1 = InlineKeyboardButton('Teacher', callback_data='button1')
 inline_btn_2 = InlineKeyboardButton('Student', callback_data='button2')
 
 inline_kb_full = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
+
+
+
+
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('begin_quiz'))
+async def process_callback_begin_quiz(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(BotStates.STATE_TEST)
+    await bot.send_message(callback_query.from_user.id, 'Quiz begin')
+
+    filename = callback_query.data.lstrip('begin_quiz ')
+    quiz_data = load_test(filename)
+    update_db_test_status(filename, quiz_data, callback_query, PATH_DB) # ToDo
+    # First question
+    text_question = ask_question(callback_query, PATH_DB) # ToDo
+    await bot.send_message(callback_query.from_user.id, text_question)
+    
+
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('button'))
 async def process_callback_kb1btn1(callback_query: types.CallbackQuery):
@@ -64,14 +88,13 @@ Commands:
 @dp.message_handler(commands=['test'])
 async def process_test_command(message: types.Message):
     arguments = message.get_args().split()
-    permission, answer = process_test_command_argumens(arguments)
+    permission, answer = process_test_command_argumens(arguments, PATH_DB)
     if permission:
-        # state to Test
-        # load quiz data
-        # print describe
-        # button: start quiz
-        # run questions
-        run_quiz(arguments)
+        # answer = filename
+        quiz_data = load_test(answer)
+        btn_begin_quiz = InlineKeyboardButton(f"Begin quiz \"{quiz_data['testname']}\"", callback_data=f"begin_quiz {answer}")
+        kb_begin_quiz = InlineKeyboardMarkup().add(btn_begin_quiz)
+        await message.answer(f"Quiz: {quiz_data['testname']}\n\nDescription: {quiz_data['description']}", reply_markup=kb_begin_quiz)
     else:
         await message.answer(answer)
 
@@ -100,16 +123,19 @@ async def process_admin_command(message: types.Message):
     if is_admin(message, PATH_DB):
         state = dp.current_state(user=message.from_user.id)
         await state.set_state(BotStates.STATE_ADMIN)
-        await message.reply('You are admin')
+        await message.answer('You are admin')
     else:
-        await message.reply('Permission denied')
+        await message.answer('Permission denied')
 
 
 @dp.message_handler(state='*', commands=['user'])
 async def process_user_command(message: types.Message):
-    state = dp.current_state(user=message.from_user.id)
-    await state.reset_state()
-    await message.reply('You are user')
+    if is_admin(message, PATH_DB):
+        state = dp.current_state(user=message.from_user.id)
+        await state.reset_state()
+        await message.answer('You are user')
+    else:
+        await message.answer('Permission denied')
 
 
 @dp.message_handler(state=BotStates.STATE_ADMIN, commands=['show_tests'])
@@ -123,6 +149,35 @@ async def process_show_tests_command(message: types.Message):
 #######################################################################
 
 
+@dp.message_handler(state=BotStates.STATE_TEST, commands=['help'])
+async def process_help_test_command(message: types.Message):
+    await message.reply(r"""
+Commands Admin:
+/help - help
+/q - finish quiz""")
+
+
+@dp.message_handler(state=BotStates.STATE_TEST, commands=['q'])
+async def process_end_test_command(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.reset_state()
+    await message.answer('Quiz end')
+
+
+@dp.message_handler(state=BotStates.STATE_TEST)
+async def echo_message(message: types.Message):
+    answer = write_answer(message, PATH_DB)
+    await message.answer(answer)
+
+    text_question = ask_question(message, PATH_DB) # ToDo
+    if text_question is None:
+        await bot.send_message(message.from_user.id, 'Quiz end.')
+        # update tests_status
+        # change state
+        state = dp.current_state(user=message.from_user.id)
+        await state.reset_state()
+    else:
+        await bot.send_message(message.from_user.id, text_question)
 
 
 
@@ -134,16 +189,10 @@ async def process_show_tests_command(message: types.Message):
 async def echo_message(message: types.Message):
     #print(dir(msg))
     msg = message
-    print(msg.from_user)
-    print(msg.from_user.id)
-    print()
-    print(msg.chat)
-    print(msg.conf)
+    # print(msg.from_user)
     
     state = dp.current_state(user=message.from_user.id)
-    await bot.send_message(msg.from_user.id, 'Answer recorded')
-    await bot.send_message(msg.from_user.id, state)
-
+    await bot.send_message(msg.from_user.id, 'Write /help to get help')
 
 if __name__ == '__main__':
     executor.start_polling(dp)

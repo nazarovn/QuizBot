@@ -25,7 +25,7 @@ def write_info(path_test: str, path_db: str, author=None):
         data = yaml.load(f, Loader=yaml.FullLoader)
     filename = os.path.split(path_test)[1]
     testname = data['testname']
-    createdate = datetime.now().strftime('%Y-%m-%d %H:%M')
+    createdate = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     begindate = data['begindate'] or ''
     enddate = data['enddate'] or ''
     author = author or ''
@@ -70,11 +70,7 @@ def load_test(filename):
 
     with open(path_file, 'r') as f:    
         data = yaml.load(f, Loader=yaml.FullLoader)
-        print(data)
-
-
-load_test('test_zero.yaml')
-
-
+        # print(data)
+    return data
 
 
