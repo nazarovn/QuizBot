@@ -72,7 +72,7 @@ def process_test_command_argumens(arguments, path_db: str):
     return True, answer
 
 
-def update_db_test_status(filename, quiz_data, callback_query, path_db):
+def update_db_test_status(filename, test_data, callback_query, path_db):
     userlogin = callback_query.from_user.username
     username = callback_query.from_user.first_name + ' ' + callback_query.from_user.last_name
     userid = callback_query.from_user.id
@@ -104,8 +104,8 @@ def ask_question(callback_query, path_db):
         )
         asked_question = [v[0] for v in cursor.fetchall()]
 
-    quiz_data = load_test(filename)
-    count_questions = len(quiz_data['questions'])
+    test_data = load_test(filename)
+    count_questions = len(test_data['questions'])
     all_question = list(range(count_questions))
     not_asked_question = list(set(all_question) - set(asked_question))
     
@@ -114,7 +114,7 @@ def ask_question(callback_query, path_db):
 
 
     next_question_id = min(not_asked_question)
-    next_question = quiz_data['questions'][next_question_id]
+    next_question = test_data['questions'][next_question_id]
     # write to db
     text_question = f"[{next_question_id + 1}/{count_questions}] {next_question['question']}"
     message_type = 'question'
@@ -150,7 +150,7 @@ def write_answer(message, path_db):
         )
         conn.commit()
     # return text message
-    return 'answer writed'
+    return 'The answer has been written'
    
 
 
