@@ -54,12 +54,15 @@ class Checker:
                     self.errors.append(f'Incorrect question attr {attr} (not {dtypes})')
 
     def __call__(self, test: dict):
-        self.check(test)
+        return self.check(test)
 
     def check(self, test: dict):
+        """Check test_data. If correct return empty string, else string with errors."""
+        self.errors = []
         checks = [self._check_test_attr, self._check_question]
         for check_ in checks:
             check_(test)
             if self.errors:
                 return ';\n'.join(self.errors)
+        return ''
 

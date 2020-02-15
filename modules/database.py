@@ -19,7 +19,7 @@ else:
 
         cursor.execute("""CREATE TABLE tests
             (filename text, testname text, createdate text,
-            begindate text, enddate text, key text, author text)""")
+            begindate text, enddate text, duration text, key text, author text)""")
 
         cursor.execute("CREATE TABLE users (login text, status text)")
     
@@ -31,7 +31,7 @@ else:
             date text, question_id integer, message_type text, message text)""")
 
         cursor.execute("""CREATE TABLE tests_status
-            (filename text, userlogin text, date text, status text, info text)""")
+            (filename text, userlogin text, username text, userid text, date text, status text, info text)""")
 
         for admin in ADMINS:
             cursor.execute("INSERT INTO users VALUES (?, 'admin')", [admin])

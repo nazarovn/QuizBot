@@ -4,6 +4,9 @@ import sqlite3
 from datetime import datetime
 import random
 import string
+from io import BytesIO
+
+from checker_correct_test import Checker
 
 
 # #####     PROCESS NEW FILE      ######
@@ -28,6 +31,7 @@ def write_info(path_test: str, path_db: str, author=None):
     createdate = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     begindate = data['begindate'] or ''
     enddate = data['enddate'] or ''
+    duration = str(data['duration']) or ''
     author = author or ''
     
     with sqlite3.connect(path_db) as conn:
@@ -39,23 +43,47 @@ def write_info(path_test: str, path_db: str, author=None):
         while key in keys:
             key = random_string(4)
 
-        values = [filename, testname, createdate, begindate, enddate, key, author]
-        cursor.execute("INSERT INTO tests VALUES (?,?,?,?,?,?,?)", values)
+        values = [filename, testname, createdate, begindate, enddate, duration, key, author]
+        cursor.execute("INSERT INTO tests VALUES (?,?,?,?,?,?,?,?)", values)
         conn.commit()
 
 
-def save_file(doc):
-    pass
+async def upload_file(bot, fileid, filename, path_tests):
+    downloaded = await bot.download_file_by_id(fileid)
+    b = BytesIO()
+    b.write(downloaded.getvalue())
+    with open(os.path.join(path_tests, filename), 'wb') as f:
+        f.write(b.getvalue())
 
 
-def check_file(doc):
-    pass
+def update_db_tests(correct_flg, filename, path_db, path_tests):
+    """Update database table 'tests'"""
+    # delete row with dame filename
+    with sqlite3.connect(path_db) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tests WHERE filename=?", (filename, ))
+        conn.commit()
+    if correct_flg:
+        # write new test info
+        write_info(os.path.join(path_tests, filename), path_db)
 
 
-def process_new_file(doc):
-    check_file(doc)
-    save_file(doc)
-    write_info(doc)
+def check_file(filename):
+    """Check test file.
+
+    :return:
+        correct_flag (bool)
+        error_messages (str)
+    """
+    try:
+        test_data = load_test(filename)
+    except Exception:
+        return False, "File don't read"
+
+    checker = Checker()
+    error_messages = checker(test_data)
+    correct_flg = error_messages == ''
+    return correct_flg, error_messages
 
 
 
