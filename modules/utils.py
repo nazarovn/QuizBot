@@ -5,7 +5,6 @@ import random
 from parser_tests import load_test
 
 
-
 def is_admin(message, path_db: str):
     """Check messege from Admin or not"""
     login = message.from_user.username
@@ -194,7 +193,6 @@ def ask_question(callback_query, path_db):
     if not not_asked_question:
         return
 
-
     next_question_id = min(not_asked_question)
     next_question = test_data['questions'][next_question_id]
     # write to db
@@ -237,12 +235,15 @@ def write_answer(message, path_db):
         cursor.execute("SELECT duration FROM tests WHERE filename=?", (filename, ))
 
         duration = cursor.fetchone()[0]
-        if duration != '':
+        if duration:
             duration = int(duration)
             date_start_test_ = datetime.fromisoformat(date_start_test)
             current_date = datetime.now()
-            if current_date > date_start_test_ + timedelta(minutes=duration):
+            time_to_end_timelimit = date_start_test_ + timedelta(minutes=duration) - current_date
+            if time_to_end_timelimit < timedelta(0):
                 return False, 'Time end.'
+            minutes_timelimit, senonds_timelimit = divmod(time_to_end_timelimit.total_seconds(), 60)
+            minutes_timelimit, senonds_timelimit = round(minutes_timelimit), round(senonds_timelimit)
 
         cursor = conn.cursor()
         cursor.execute(
@@ -251,7 +252,35 @@ def write_answer(message, path_db):
         )
         conn.commit()
     # return text message
-    return True, 'The answer has been written'
+    answer = 'The answer has been written.'
+    if duration:
+        answer += f" Remaining time {minutes_timelimit}:{senonds_timelimit}."
+    return True, answer
 
 
+def get_test_score(message, path_db):
+    """Calculate test score for user after test."""
+    userlogin, username, userid = get_user_info(message.from_user)
+    with sqlite3.connect(path_db) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT filename, date FROM tests_status WHERE userlogin = ? AND status = 'begin'", [userlogin,])
+        # take filename with max date
+        filename, date_start_test = sorted(cursor.fetchall(), key=lambda x: x[1])[-1]
 
+        test_data = load_test(filename)
+
+        cursor.execute(
+            "SELECT date, question_id, message_type, message FROM answers WHERE userlogin=? AND datebegin=? AND filename=?",
+            [userlogin, date_start_test, filename])
+        test_messages = sorted(cursor.fetchall(), key=lambda x: x[0])
+        answers_user = [row[3] for row in test_messages[1::2]]
+        answers_id = [row[1] for row in test_messages[0::2]][:len(answers_user)]
+        answers_true = [test_data['questions'][idx]['answer'] for idx in answers_id]
+
+    count_question = len(test_data['questions'])
+    count_true_answer = 0
+    for answer_user, answer_true in zip(answers_user, answers_true):
+        if answer_user.lower() == answer_true.lower():
+            count_true_answer += 1
+    message_for_user = f"Score {round(count_true_answer / count_question * 100)}%, {count_true_answer}/{count_question}"
+    return message_for_user

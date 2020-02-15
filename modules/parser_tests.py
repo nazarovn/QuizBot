@@ -31,7 +31,7 @@ def write_info(path_test: str, path_db: str, author=None):
     createdate = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     begindate = data['begindate'] or ''
     enddate = data['enddate'] or ''
-    duration = str(data['duration']) or ''
+    duration = data['duration'] or ''
     author = author or ''
     
     with sqlite3.connect(path_db) as conn:

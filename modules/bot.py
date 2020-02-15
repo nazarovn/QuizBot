@@ -14,7 +14,7 @@ from aiogram.types import ReplyKeyboardRemove, \
 from bot_states import BotStates
 from utils import is_admin, get_info_show_tests, process_test_command_argumens
 from utils import update_db_test_status_begin, update_db_test_status_end, ask_question, write_answer
-from utils import generate_new_password, get_password
+from utils import generate_new_password, get_password, get_test_score
 from parser_tests import load_test, upload_file, check_file, update_db_tests
 from conf import TOKEN
 
@@ -56,8 +56,14 @@ async def process_test_command(message: types.Message):
             callback_data=f"begin_test {answer}"
         )
         kb_begin_quiz = InlineKeyboardMarkup().add(btn_begin_quiz)
+
+        testname = test_data['testname']
+        description = test_data['description']
+        count_question = len(test_data['questions'])
+        duration = test_data['duration'] or 'no time limit'
         await message.answer(
-            f"The test: {test_data['testname']}\n\nThe description: {test_data['description']}",
+            f"The test: {testname}\n\nThe description: {description}\n\n"
+            f"count questions: {count_question}\nduration: {duration}",
             reply_markup=kb_begin_quiz
         )
     else:
@@ -179,10 +185,13 @@ Command Test:
 
 @dp.message_handler(state=BotStates.STATE_TEST, commands=['q'])
 async def process_end_test_command(message: types.Message):
+    test_score = get_test_score(message, PATH_DB)
+    await bot.send_message(message.from_user.id, test_score)
+
+    update_db_test_status_end(message, PATH_DB)
     state = dp.current_state(user=message.from_user.id)
     await state.reset_state()
     await message.answer('The end')
-    update_db_test_status_end(message, PATH_DB)
 
 
 @dp.message_handler(state=BotStates.STATE_TEST)
@@ -191,16 +200,21 @@ async def process_answer(message: types.Message):
     success, answer = write_answer(message, PATH_DB)
     await message.answer(answer)
 
-    text_question = ask_question(message, PATH_DB)
+    text_question = None
+    if success:
+        text_question = ask_question(message, PATH_DB)
+
     if (text_question is None) or (not success):
         await bot.send_message(message.from_user.id, 'The end.')
-        # update tests_status
+
+        test_score = get_test_score(message, PATH_DB)
+        await bot.send_message(message.from_user.id, test_score)
+
         update_db_test_status_end(message, PATH_DB)
         state = dp.current_state(user=message.from_user.id)
         await state.reset_state()
     else:
         await bot.send_message(message.from_user.id, text_question)
-
 
 
 if __name__ == '__main__':
